@@ -1,0 +1,326 @@
+import random
+import math
+import tkinter as tk
+from tkinter import ttk
+from PIL import ImageTk,Image
+
+# NOTES
+# rolling dice list updates every time but can only be changed by rolling scale spinbox - inefficient
+# dice lists should be cached for reuse rather than created new every time - need to include size and colour
+# rerolling cancels the result die appearing but doesn't cancel the rolling animations
+# add config file for spritesheet with location and sizes
+# add more UI elements including an RGB background selector
+# next project: ampersands style - with SQL and database?
+
+# spritesheet location
+dice_sprite_sheet_location = r"Dice Roll\Python\dice.png"
+
+class SpriteSheet():
+    # class to handle loading and cropping of sprite sheets
+    def __init__(self, location, sheet_width, sheet_height, sprite_width, sprite_height, rolling_dice_row):
+        self.sprite_sheet_location = location
+        self.sprite_sheet_width = sheet_width
+        self.sprite_sheet_height = sheet_height
+        self.sprite_width = sprite_width
+        self.sprite_height = sprite_height
+        self.rolling_dice_row = rolling_dice_row
+        self.sprite_sheet = Image.open(location).convert("RGBA")
+        self.dice_colours = ['White', 'Dark purple', 'Red', 'Hot pink', 'Blush pink', 'Purple', 'Cyan', 'Dark blue', 'Green', 'Light green', 'Yellow', 'Orange']
+
+    def crop_sprite_sheet(self, chosen_position, scale):
+    # function to isolate sprites within a sprite sheet
+        if (chosen_position[0])*self.sprite_width > self.sprite_sheet_width or (chosen_position[1])*self.sprite_height > self.sprite_sheet_height:
+            print("ERROR: sprite outside of range")
+            return None
+        
+        #where to find first sprite on sheet
+        _x_start = (chosen_position[0]-1)*self.sprite_width
+        _y_start = (chosen_position[1]-1)*self.sprite_height
+        _x_end = (chosen_position[0])*self.sprite_width 
+        _y_end = (chosen_position[1])*self.sprite_height 
+
+        # crop sprite sheet to chosen sprite
+        _sprite = self.sprite_sheet.crop((_x_start,_y_start,_x_end,_y_end))
+        
+        # enlarge sprite by scale factor
+        _scale_factor = math.floor(scale)
+        _large_sprite = _sprite.resize((16*_scale_factor,16*_scale_factor))
+        return (_large_sprite)
+
+    # getters only
+    def get_sprite_sheet_location(self):
+        return self.location
+    
+    def get_sprite_sheet_width(self):
+        return self.sheet_width
+    
+    def get_sprite_sheet_height(self):
+        return self.sheet_height
+    
+    def get_sprite_width(self):
+        return self.sprite_width
+    
+    def get_sprite_height(self):
+        return self.sprite_height
+    
+    def get_rolling_dice_sprite(self):
+        return self.rolling_dice_row
+    
+    def get_colour_index(self, colour):
+        return self.dice_colours.index(colour.get()) + 1
+    
+class Dice():
+    def __init__(self, dice_colour, rolling_scale, result_scale, rolling_delay, result_delay, sprite_sheet):
+        self.sprite_sheet = sprite_sheet
+        self.result_delay = tk.DoubleVar(value=result_delay)
+        self.original_rolling_scale = rolling_scale
+        self.original_result_scale = result_scale
+        self.rolling_scale = rolling_scale
+        self.result_scale = result_scale
+        # combobox variables
+        self.spinbox_scale = tk.DoubleVar(value=1.0)
+        self.prev_spinbox_scale = 1.0
+        self.rolling_delay = tk.DoubleVar(value=rolling_delay)
+        self.prev_spinbox_rolling_delay = rolling_delay
+        self.result_delay = tk.DoubleVar(value=result_delay)
+        self.prev_spinbox_result_delay = result_delay
+        # spinbox variables
+        self.dice_colour = dice_colour
+        self.prev_colour = dice_colour.get()
+        # creation of dice lists 
+        self.dice_list = self.create_dice_list(sprite_sheet, self.sprite_sheet.get_colour_index(self.dice_colour), self.result_scale)
+        self.rolling_dice_list = self.create_dice_list(sprite_sheet, sprite_sheet.get_rolling_dice_sprite(), self.rolling_scale)
+        # variables to handle cancelling roll result if rerolled
+        self.future_clear = None
+        self.future_create = None
+
+    # getters and setters
+    def get_rolling_scale(self):
+        return(self.rolling_scale)
+             
+    def get_result_scale(self):
+        return(self.result_scale)
+    
+    def get_rolling_dice(self):
+        return(self.rolling_dice_list)
+    
+    def set_rolling_dice(self, _new_rolling_dice_list):
+        self.rolling_dice_list = _new_rolling_dice_list
+    
+    def get_result_dice(self):
+        return(self.dice_list)
+    
+    def set_result_dice(self, _new_dice_list):
+        self.dice_list = _new_dice_list
+    
+    def get_rolling_delay(self):
+        return(self.rolling_delay)
+    
+    def get_result_delay(self):
+        return(self.result_delay)
+    
+    def create_dice_list(self, dice_sprite_sheet, dice_choice, scale):
+    # creation of dice lists
+        my_dice=[]
+        for i in range(6):
+            my_dice.append(ImageTk.PhotoImage(dice_sprite_sheet.crop_sprite_sheet((i+1,dice_choice), scale)))
+        return(my_dice)
+    
+    def check_result_scale_spinbox(self):
+    # function to check whether spinbox numbers have been changed
+        _current_scale = self.spinbox_scale.get()
+        if self.prev_spinbox_scale != _current_scale:
+            self.result_scale = self.original_result_scale*_current_scale
+            self.prev_spinbox_scale = _current_scale
+            return True
+        else: 
+            return False
+        
+    def check_rolling_delay_spinbox(self):
+    # function to check whether spinbox numbers have been changed
+        _current_delay = self.rolling_delay.get()
+        if self.prev_spinbox_rolling_delay != _current_delay:
+            self.rolling_delay = _current_delay
+            self.prev_spinbox_rolling_delay = _current_delay
+            return True
+        else:
+            return False
+        
+    def check_result_delay_spinbox(self):
+    # function to check whether spinbox numbers have been changed
+        _current_delay = self.result_delay.get()
+        if self.prev_spinbox_result_delay != _current_delay:
+            self.result_delay = _current_delay
+            self.prev_spinbox_result_delay = _current_delay
+            return True
+        else:
+            return False
+        
+    def check_colour_spinbox(self):
+    #  function to check whether combobox colour has changed
+        _current_colour = self.dice_colour.get()
+        if self.prev_colour != _current_colour:
+            self.prev_colour = _current_colour
+            return True
+        else:
+            return False
+
+    def check_for_dice_change(self):
+    # function to check whether any spinbox/combobox values have been changed and update dice
+        if self.check_result_scale_spinbox() or self.check_rolling_delay_spinbox or self.check_colour_spinbox:
+            self.update_dice()
+
+    def update_dice(self):
+    # function call to update dice on colour change or resize
+        _colour_index = self.sprite_sheet.get_colour_index(self.dice_colour)
+        self.dice_list = self.create_dice_list(self.sprite_sheet, _colour_index, self.get_result_scale())
+        self.rolling_dice_list = self.create_dice_list(self.sprite_sheet, self.sprite_sheet.get_rolling_dice_sprite(), self.rolling_scale)
+
+    def multiply_rolling_scale(self, _scale_factor):
+    # function called on window resize
+            self.rolling_scale = self.original_rolling_scale*_scale_factor
+
+    def multiply_result_scale(self, scale_factor):
+    # function called on window resize
+        self.result_scale = self.original_result_scale*scale_factor
+    
+    def show_next_image(self, rolling_dice, image_number, canvas, scale, dice_delay, sprite_sheet):
+    # recursive function to show all rolling dice
+        canvas.delete("all")
+        _dice_size = sprite_sheet.get_sprite_width()*scale
+        _interval = (canvas.winfo_width()- 20 - 6*_dice_size)/5
+        if image_number < len(rolling_dice)-1:
+            
+            canvas.create_image((15 + _dice_size*image_number+image_number*_interval,15), anchor = 'nw', image=rolling_dice[image_number])
+            canvas.after(int(100*dice_delay.get()), lambda: self.show_next_image(rolling_dice,image_number+1, canvas, scale, dice_delay, sprite_sheet))
+        else:
+            canvas.create_image((15 + _dice_size*image_number+image_number*_interval,15), anchor = 'nw', image=rolling_dice[image_number])
+
+    def roll(self, canvas, dice, sprite_sheet):
+        # Cancel previous roll operations if they exist and clear the canvas
+        canvas.delete("all")
+        if self.future_clear is not None:
+            canvas.after_cancel(self.future_clear)
+        if self.future_create is not None:
+            canvas.after_cancel(self.future_create)
+
+        # check whether dice settings have changed and update dice
+        self.check_for_dice_change()
+
+        # create all dice images on canvas        
+        dice_delay = self.get_rolling_delay()
+        result_delay = self.get_result_delay()
+        # show all rolling dice
+        self.show_next_image(self.rolling_dice_list, 0, canvas, self.rolling_scale, dice_delay, sprite_sheet)
+
+        # choose result value
+        n = random.randint(1,6)
+        # find centre for placement
+        _width = canvas.winfo_width()
+        _height = canvas.winfo_height()
+        _centre = (_width/2, _height/2)
+        # clear final rolling dice and place result die
+        self.future_clear = canvas.after(int(100*dice_delay.get()*6+ 100*result_delay.get() - 1), lambda: canvas.delete("all"))
+        self.future_create = canvas.after(int(100*dice_delay.get()*6 + 100*result_delay.get()), lambda: canvas.create_image(_centre, anchor = 'center', image=self.dice_list[n-1]))
+
+
+class ResizingCanvas(tk.Canvas):
+    # canvas which causes dice lists to be scaled when window expands
+    def __init__(self,parent, dice, **kwargs):
+        super().__init__(parent)
+        self.bind("<Configure>", self.on_resize)
+        self.bd = kwargs.get("bd")
+        self.bg = kwargs.get("bg")
+        self.relief = kwargs.get("relief")
+        self.highlightthickness = kwargs.get("highlightthickness")
+        self.cursor = kwargs.get("cursor")
+        self.dice = dice
+        self.scale_factor = 1
+        self.last_resize_time = None
+        self.resize_delay = 100
+
+        # Configure Canvas
+        self.config(bg=self.bg, bd=self.bd, relief=self.relief, highlightthickness=self.highlightthickness, cursor=self.cursor)
+        self.width = self.winfo_width()
+        self.height = self.winfo_height()
+        self.prev_width = self.winfo_width()
+        self.prev_height = self.winfo_height()
+
+    def on_resize(self, event):
+        if self.last_resize_time:
+            self.after_cancel(self.last_resize_time)
+        self.width = event.width
+        self.last_resize_time = self.after(self.resize_delay, self.resize_images)
+
+    def resize_images(self):
+        self.scale_factor = float(self.width) / 500
+        self.dice.multiply_rolling_scale(self.scale_factor)
+        self.dice.multiply_result_scale(self.scale_factor)
+        self.dice.update_dice()
+
+def define_window(root, title, width, height, minw, maxw, minh, maxh):
+    # details of main window
+    
+    root.title(title)
+    size = str(width) + "x" + str(height)
+    root.geometry(size)
+    root.minsize(minw,minh)
+    root.maxsize(maxw,maxh)
+
+def load_UI_elements(root, my_dice, dice_sheet, original_colour):
+    # creation of frame for UI elements
+    my_frame = tk.Frame(root)
+    my_frame.pack(side="top", fill = "both", expand=True, padx=10, pady=10)
+    # configure rows and columns of frame
+    my_frame.grid_rowconfigure(0, weight=1)
+    my_frame.grid_columnconfigure(0, weight=1) 
+   
+    # creation of UI elements
+    canvas_border_size = 10
+    my_canvas = ResizingCanvas(my_frame, my_dice, width=400 - 2*canvas_border_size, height = 350, bd=canvas_border_size, relief='ridge', highlightthickness=0, bg = 'skyblue', cursor='dot')
+    my_button = tk.Button(my_frame, text = "Roll the dice?", command = lambda:my_dice.roll(my_canvas, my_dice, dice_sheet))
+
+    colour_label = tk.Label(my_frame, text = "Dice Colour:")
+    dice_colour_box = ttk.Combobox(my_frame, values=dice_sheet.dice_colours, textvariable=original_colour)
+
+    spinbox_scale_label = tk.Label(my_frame, text = "Result Size:")
+    result_scale_spinbox = tk.Spinbox(my_frame, from_=0.1, to = 5.0, textvariable=my_dice.spinbox_scale, increment=0.1)
+
+    spinbox_result_delay_label = tk.Label(my_frame, text = "Result Delay:")
+    result_delay_spinbox = tk.Spinbox(my_frame, from_=0.1, to = 5.0, textvariable=my_dice.result_delay, increment=0.1)
+
+    spinbox_rolling_delay_label = tk.Label(my_frame, text = "Rolling Delay:")
+    rolling_delay_spinbox = tk.Spinbox(my_frame, from_=0.1, to = 5.0, textvariable=my_dice.rolling_delay, increment=0.1)
+
+    # load UI elements into frame
+    my_canvas.grid(row=0, column = 0, columnspan = 4, sticky = 'nsew')
+    my_button.grid(row=1, column = 0, rowspan = 2, sticky = 'nsew')
+
+    colour_label.grid(row=1, column = 2)
+    dice_colour_box.grid(row=1, column = 3)
+    
+    spinbox_scale_label.grid(row=2, column = 2)
+    result_scale_spinbox.grid(row = 2, column=3)
+    
+    spinbox_result_delay_label.grid(row=3, column = 2)
+    result_delay_spinbox.grid(row=3, column = 3)
+
+    spinbox_rolling_delay_label.grid(row=4, column = 2)
+    rolling_delay_spinbox.grid(row=4, column = 3)
+
+def main():
+    root = tk.Tk()
+    define_window(root, "DiceRoll", 500, 500, 400, 1000, 400, 1000)
+
+    # load spritesheet and dice
+    dice_sheet = SpriteSheet(location=dice_sprite_sheet_location, sheet_width=96, sheet_height=240, sprite_width=16, sprite_height=16, rolling_dice_row=15)
+    original_colour = tk.StringVar(value=dice_sheet.dice_colours[0])
+    my_dice = Dice(original_colour, rolling_scale=4, result_scale=5, rolling_delay=1.5, result_delay=3 ,sprite_sheet=dice_sheet)
+
+    load_UI_elements(root, my_dice, dice_sheet, original_colour)
+    
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
+    
