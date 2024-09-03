@@ -1,5 +1,4 @@
 import random
-import math
 import tkinter as tk
 from tkinter import ttk
 from PIL import ImageTk,Image
@@ -43,8 +42,8 @@ class SpriteSheet():
         _sprite = self.sprite_sheet.crop((_x_start,_y_start,_x_end,_y_end))
         
         # enlarge sprite by scale factor
-        _scale_factor = math.floor(scale)
-        _large_sprite = _sprite.resize((16*_scale_factor,16*_scale_factor))
+        _scale_factor = int(scale)
+        _large_sprite = _sprite.resize((self.sprite_sheet_width*_scale_factor,self.sprite_sheet_width*_scale_factor))
         return (_large_sprite)
 
     # getters only
