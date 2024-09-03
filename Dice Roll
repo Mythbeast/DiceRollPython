@@ -1,5 +1,7 @@
 import random
 import tkinter as tk
+import configparser
+import os
 from tkinter import ttk
 from PIL import ImageTk,Image
 
@@ -10,9 +12,6 @@ from PIL import ImageTk,Image
 # add config file for spritesheet with location and sizes
 # add more UI elements including an RGB background selector
 # next project: ampersands style - with SQL and database?
-
-# spritesheet location
-dice_sprite_sheet_location = r"Dice Roll\Python\dice.png"
 
 class SpriteSheet():
     # class to handle loading and cropping of sprite sheets
@@ -45,28 +44,11 @@ class SpriteSheet():
         _scale_factor = int(scale)
         _large_sprite = _sprite.resize(size=(self.sprite_width*_scale_factor,self.sprite_width*_scale_factor))
         return (_large_sprite)
-
-    # getters only
-    def get_sprite_sheet_location(self):
-        return self.location
-    
-    def get_sprite_sheet_width(self):
-        return self.sheet_width
-    
-    def get_sprite_sheet_height(self):
-        return self.sheet_height
-    
-    def get_sprite_width(self):
-        return self.sprite_width
-    
-    def get_sprite_height(self):
-        return self.sprite_height
-    
-    def get_rolling_dice_sprite(self):
-        return self.rolling_dice_row
     
     def get_colour_index(self, colour):
         return self.dice_colours.index(colour.get()) + 1
+
+
     
 class Dice():
     def __init__(self, dice_colour, rolling_scale, result_scale, rolling_delay, result_delay, sprite_sheet):
@@ -89,36 +71,11 @@ class Dice():
         self.prev_colour = dice_colour.get()
         # creation of dice lists 
         self.dice_list = self.create_dice_list(sprite_sheet, self.sprite_sheet.get_colour_index(self.dice_colour), self.result_scale)
-        self.rolling_dice_list = self.create_dice_list(sprite_sheet, sprite_sheet.get_rolling_dice_sprite(), self.rolling_scale)
+        self.rolling_dice_list = self.create_dice_list(sprite_sheet, self.sprite_sheet.rolling_dice_row, self.rolling_scale)
         # variables to handle cancelling roll result if rerolled
         self.future_clear = None
         self.future_create = None
-
-    # getters and setters
-    def get_rolling_scale(self):
-        return(self.rolling_scale)
-             
-    def get_result_scale(self):
-        return(self.result_scale)
-    
-    def get_rolling_dice(self):
-        return(self.rolling_dice_list)
-    
-    def set_rolling_dice(self, _new_rolling_dice_list):
-        self.rolling_dice_list = _new_rolling_dice_list
-    
-    def get_result_dice(self):
-        return(self.dice_list)
-    
-    def set_result_dice(self, _new_dice_list):
-        self.dice_list = _new_dice_list
-    
-    def get_rolling_delay(self):
-        return(self.rolling_delay)
-    
-    def get_result_delay(self):
-        return(self.result_delay)
-    
+ 
     def create_dice_list(self, dice_sprite_sheet, dice_choice, scale):
     # creation of dice lists
         my_dice=[]
@@ -173,8 +130,8 @@ class Dice():
     def update_dice(self):
     # function call to update dice on colour change or resize
         _colour_index = self.sprite_sheet.get_colour_index(self.dice_colour)
-        self.dice_list = self.create_dice_list(self.sprite_sheet, _colour_index, self.get_result_scale())
-        self.rolling_dice_list = self.create_dice_list(self.sprite_sheet, self.sprite_sheet.get_rolling_dice_sprite(), self.rolling_scale)
+        self.dice_list = self.create_dice_list(self.sprite_sheet, _colour_index, self.result_scale)
+        self.rolling_dice_list = self.create_dice_list(self.sprite_sheet, self.sprite_sheet.rolling_dice_row, self.rolling_scale)
 
     def multiply_rolling_scale(self, scale_factor):
     # function called on window resize
@@ -187,11 +144,11 @@ class Dice():
     def show_next_image(self, rolling_dice, image_number, canvas, scale, dice_delay, sprite_sheet):
     # recursive function to show all rolling dice
         canvas.delete("all")
-        _dice_size = sprite_sheet.get_sprite_width()*scale
+        _dice_size = sprite_sheet.sprite_width*scale
         _interval = (canvas.winfo_width()- 20 - 6*_dice_size)/5
         if image_number < len(rolling_dice)-1:
             canvas.create_image((15 + _dice_size*image_number+image_number*_interval,15), anchor = 'nw', image=rolling_dice[image_number])
-            canvas.after(int(100*dice_delay.get()), lambda: self.show_next_image(rolling_dice,image_number+1, canvas, scale, dice_delay, sprite_sheet))
+            canvas.after(int(1000*dice_delay), lambda: self.show_next_image(rolling_dice,image_number+1, canvas, scale, dice_delay, sprite_sheet))
         else:
             canvas.create_image((15 + _dice_size*image_number+image_number*_interval,15), anchor = 'nw', image=rolling_dice[image_number])
 
@@ -207,8 +164,8 @@ class Dice():
         self.check_for_dice_change()
 
         # create all dice images on canvas        
-        dice_delay = self.get_rolling_delay()
-        result_delay = self.get_result_delay()
+        dice_delay = self.rolling_delay.get()
+        result_delay = self.result_delay.get()
         # show all rolling dice
         self.show_next_image(self.rolling_dice_list, 0, canvas, self.rolling_scale, dice_delay, sprite_sheet)
 
@@ -219,9 +176,8 @@ class Dice():
         _height = canvas.winfo_height()
         _centre = (_width/2, _height/2)
         # clear final rolling dice and place result die
-        self.future_clear = canvas.after(int(100*dice_delay.get()*6+ 100*result_delay.get() - 1), lambda: canvas.delete("all"))
-        self.future_create = canvas.after(int(100*dice_delay.get()*6 + 100*result_delay.get()), lambda: canvas.create_image(_centre, anchor = 'center', image=self.dice_list[n-1]))
-
+        self.future_clear = canvas.after(int(1000*dice_delay*6+ 1000*result_delay - 1), lambda: canvas.delete("all"))
+        self.future_create = canvas.after(int(1000*dice_delay*6 + 1000*result_delay), lambda: canvas.create_image(_centre, anchor = 'center', image=self.dice_list[n-1]))
 
 class ResizingCanvas(tk.Canvas):
     # canvas which causes dice lists to be scaled when window expands
@@ -257,6 +213,23 @@ class ResizingCanvas(tk.Canvas):
         self.dice.multiply_result_scale(self._scale_factor)
         self.dice.update_dice()
 
+def load_sprite_sheet():
+    # function to read sprite sheet info from spritesheetconfig.ini
+    # create config object and read correct file
+    config = configparser.ConfigParser()
+    config_file_path = os.path.join(os.path.dirname(__file__), 'spritesheetconfig.ini')
+    config.read(config_file_path)
+    # read info
+    dice_sprite_sheet_location = config['SPRITESHEET']['dice_sprite_sheet_location']
+    sheet_width = int(config['SPRITESHEET']['sheet_width'])
+    sheet_height = int(config['SPRITESHEET']['sheet_height'])
+    sprite_width = int(config['SPRITESHEET']['sprite_width'])
+    sprite_height = int(config['SPRITESHEET']['sprite_height'])
+    rolling_dice_row = int(config['SPRITESHEET']['rolling_dice_row'])
+    # load the sprite sheet
+    dice_sheet = SpriteSheet(dice_sprite_sheet_location, sheet_width, sheet_height, sprite_width, sprite_height, rolling_dice_row)
+    return dice_sheet
+    
 def define_window(root, title, width, height, minw, maxw, minh, maxh):
     # details of main window
     
@@ -286,10 +259,10 @@ def load_UI_elements(root, my_dice, dice_sheet, original_colour):
     result_scale_spinbox = tk.Spinbox(my_frame, from_=0.1, to = 5.0, textvariable=my_dice.spinbox_scale, increment=0.1)
 
     spinbox_result_delay_label = tk.Label(my_frame, text = "Result Delay:")
-    result_delay_spinbox = tk.Spinbox(my_frame, from_=0.1, to = 5.0, textvariable=my_dice.result_delay, increment=0.1)
+    result_delay_spinbox = tk.Spinbox(my_frame, from_=0.01, to = 5.00, textvariable=my_dice.result_delay, increment=0.01)
 
     spinbox_rolling_delay_label = tk.Label(my_frame, text = "Rolling Delay:")
-    rolling_delay_spinbox = tk.Spinbox(my_frame, from_=0.1, to = 5.0, textvariable=my_dice.rolling_delay, increment=0.1)
+    rolling_delay_spinbox = tk.Spinbox(my_frame, from_=0.01, to = 5.00, textvariable=my_dice.rolling_delay, increment=0.01)
 
     # load UI elements into frame
     my_canvas.grid(row=0, column = 0, columnspan = 4, sticky = 'nsew')
@@ -312,9 +285,9 @@ def main():
     define_window(root, "DiceRoll", 500, 500, 400, 1000, 400, 1000)
 
     # load spritesheet and dice
-    dice_sheet = SpriteSheet(location=dice_sprite_sheet_location, sheet_width=96, sheet_height=240, sprite_width=16, sprite_height=16, rolling_dice_row=15)
+    dice_sheet = load_sprite_sheet()
     original_colour = tk.StringVar(value=dice_sheet.dice_colours[0])
-    my_dice = Dice(original_colour, rolling_scale=4, result_scale=5, rolling_delay=1.5, result_delay=3 ,sprite_sheet=dice_sheet)
+    my_dice = Dice(original_colour, rolling_scale=4, result_scale=5, rolling_delay=0.15, result_delay=0.30 ,sprite_sheet=dice_sheet)
 
     load_UI_elements(root, my_dice, dice_sheet, original_colour)
     
