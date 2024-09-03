@@ -43,7 +43,7 @@ class SpriteSheet():
         
         # enlarge sprite by scale factor
         _scale_factor = int(scale)
-        _large_sprite = _sprite.resize((self.sprite_sheet_width*_scale_factor,self.sprite_sheet_width*_scale_factor))
+        _large_sprite = _sprite.resize(size=(self.sprite_width*_scale_factor,self.sprite_width*_scale_factor))
         return (_large_sprite)
 
     # getters only
@@ -76,6 +76,7 @@ class Dice():
         self.original_result_scale = result_scale
         self.rolling_scale = rolling_scale
         self.result_scale = result_scale
+
         # combobox variables
         self.spinbox_scale = tk.DoubleVar(value=1.0)
         self.prev_spinbox_scale = 1.0
@@ -175,9 +176,9 @@ class Dice():
         self.dice_list = self.create_dice_list(self.sprite_sheet, _colour_index, self.get_result_scale())
         self.rolling_dice_list = self.create_dice_list(self.sprite_sheet, self.sprite_sheet.get_rolling_dice_sprite(), self.rolling_scale)
 
-    def multiply_rolling_scale(self, _scale_factor):
+    def multiply_rolling_scale(self, scale_factor):
     # function called on window resize
-            self.rolling_scale = self.original_rolling_scale*_scale_factor
+        self.rolling_scale = self.original_rolling_scale*scale_factor
 
     def multiply_result_scale(self, scale_factor):
     # function called on window resize
@@ -189,13 +190,12 @@ class Dice():
         _dice_size = sprite_sheet.get_sprite_width()*scale
         _interval = (canvas.winfo_width()- 20 - 6*_dice_size)/5
         if image_number < len(rolling_dice)-1:
-            
             canvas.create_image((15 + _dice_size*image_number+image_number*_interval,15), anchor = 'nw', image=rolling_dice[image_number])
             canvas.after(int(100*dice_delay.get()), lambda: self.show_next_image(rolling_dice,image_number+1, canvas, scale, dice_delay, sprite_sheet))
         else:
             canvas.create_image((15 + _dice_size*image_number+image_number*_interval,15), anchor = 'nw', image=rolling_dice[image_number])
 
-    def roll(self, canvas, dice, sprite_sheet):
+    def roll(self, canvas, sprite_sheet):
         # Cancel previous roll operations if they exist and clear the canvas
         canvas.delete("all")
         if self.future_clear is not None:
@@ -252,9 +252,9 @@ class ResizingCanvas(tk.Canvas):
         self.last_resize_time = self.after(self.resize_delay, self.resize_images)
 
     def resize_images(self):
-        self.scale_factor = float(self.width) / 500
-        self.dice.multiply_rolling_scale(self.scale_factor)
-        self.dice.multiply_result_scale(self.scale_factor)
+        self._scale_factor = float(self.width) / 500
+        self.dice.multiply_rolling_scale(self._scale_factor)
+        self.dice.multiply_result_scale(self._scale_factor)
         self.dice.update_dice()
 
 def define_window(root, title, width, height, minw, maxw, minh, maxh):
@@ -277,7 +277,7 @@ def load_UI_elements(root, my_dice, dice_sheet, original_colour):
     # creation of UI elements
     canvas_border_size = 10
     my_canvas = ResizingCanvas(my_frame, my_dice, width=400 - 2*canvas_border_size, height = 350, bd=canvas_border_size, relief='ridge', highlightthickness=0, bg = 'skyblue', cursor='dot')
-    my_button = tk.Button(my_frame, text = "Roll the dice?", command = lambda:my_dice.roll(my_canvas, my_dice, dice_sheet))
+    my_button = tk.Button(my_frame, text = "Roll the dice?", command = lambda:my_dice.roll(my_canvas, dice_sheet))
 
     colour_label = tk.Label(my_frame, text = "Dice Colour:")
     dice_colour_box = ttk.Combobox(my_frame, values=dice_sheet.dice_colours, textvariable=original_colour)
