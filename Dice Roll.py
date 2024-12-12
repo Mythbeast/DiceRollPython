@@ -8,9 +8,8 @@ from PIL import ImageTk,Image
 # NOTES
 # rolling dice list updates every time but can only be changed by rolling scale spinbox - inefficient
 # dice lists should be cached for reuse rather than created new every time - need to include size and colour
-# rerolling cancels the result die appearing but doesn't cancel the rolling animations
 # add more UI elements including an RGB background selector
-# next project: ampersands style - with SQL and database?
+# currently config.ini needs to be manually updated to specify location of spritesheet
 
 # Global constant
 MS_PER_SECOND = 1000
